@@ -9,20 +9,27 @@ const char* WIFI_PASS = "iotempire";
 const char* MQTT_BROKER = "192.168.14.1";
 const int   MQTT_PORT   = 1883;
 
-const char* TOPIC_GOAL     = "tiim1/foosball/goal";
-const char* TOPIC_CANSCORE = "tiim1/foosball/canscore";
+const char* TOPIC_GOAL     = "foosball/goal/tiim2";
+const char* TOPIC_CANSCORE = "foosball/canscore";
 
-const char* CLIENT_ID  = "wemos-goal-node";
+const char* TOPIC_SCORE     = "foosball/score/tiim2";
+
+const char* CLIENT_ID  = "wemos-goal-node2";
 
 // ===== Ultrasonic sensor pins =====
 #define TRIG_PIN D6
 #define ECHO_PIN D7
+#define BUTTON_PIN_ADD D3
+#define BUTTON_PIN_REMOVE D4
+
 
 // ===== Goal detection =====
 #define GOAL_DISTANCE_CM 6.0
 
 bool goalAlreadySent = false;
 bool canScore = false;   // default: cannot score until MQTT says "true"
+bool lastButtonState_add = HIGH;
+bool lastButtonState_remove = HIGH;
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
@@ -123,6 +130,11 @@ void setup() {
 
   mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
+
+  //button
+  pinMode(BUTTON_PIN_ADD, INPUT_PULLUP);
+  pinMode(BUTTON_PIN_REMOVE, INPUT_PULLUP);
+
 }
 
 void loop() {
@@ -165,6 +177,22 @@ void loop() {
       goalAlreadySent = false;
     }
   }
+  bool buttonState_add = digitalRead(BUTTON_PIN_ADD);
+  bool buttonState_remove = digitalRead(BUTTON_PIN_REMOVE);
+
+  if (buttonState_add == LOW && lastButtonState_add == HIGH) {
+      mqttClient.publish(TOPIC_SCORE, "1");
+      Serial.println("added");
+  }
+
+  lastButtonState_add = buttonState_add;
+
+  if (buttonState_remove == LOW && lastButtonState_remove == HIGH) {
+      mqttClient.publish(TOPIC_SCORE, "-1");
+      Serial.println("removed");
+  }
+
+  lastButtonState_remove = buttonState_remove;
 
   delay(300);
 }
